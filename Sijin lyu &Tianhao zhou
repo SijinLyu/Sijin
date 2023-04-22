@@ -1,0 +1,94 @@
+library(readxl)
+fat <- read_excel("Desktop/fat.xlsx")
+library(ggplot2)
+library(GGally)
+library(dplyr)
+fat <- fat[-182,]
+
+fat <- fat[fat$Hip_circumference <= 120,]
+fat <- na.omit(fat)
+
+summary(fat$Weight)
+
+
+
+fat$group_percent <- cut(fat$Percent_body_fat_Brozek, breaks = c(0, 10, 20, 30, 40, 50), 
+                         labels = c("0-10", "11-20", "21-30", "31-40", "41-50"))
+
+# Create a boxplot of Hip_circumference for each group
+ggplot(fat, aes(x = group_percent, y = Hip_circumference, fill = group_percent)) +
+  geom_boxplot() +
+  labs(x = "Percent Body Fat Group", y = "Hip Circumference (cm)", fill = "Percent Body Fat Group") +
+  ggtitle("Boxplot of Hip Circumference by Percent Body Fat Group")
+
+
+# Divide Height into 3 groups
+fat$Height_group <- cut(fat$Height, breaks = c(60, 65, 70, 75))
+
+# Create boxplot for Hip_circumference distribution in each Height group
+ggplot(fat, aes(x = Height_group, y = Hip_circumference)) +
+  geom_boxplot(fill = "steelblue", color = "white") +
+  xlab("Height group (inches)") +
+  ylab("Hip circumference (cm)") +
+  ggtitle("Hip circumference distribution by Height group")
+
+
+# Divide weight into 4 groups
+fat <- fat %>% 
+  mutate(weight_group = cut(Weight, breaks = c(120, 160, 200, 250)))
+fat <- na.omit(fat)
+
+ggplot(fat, aes(x = weight_group, y = Hip_circumference)) +
+  geom_boxplot(fill = "steelblue", color = "white") +
+  labs(title = "Boxplot of Hip Circumference by Weight Group",
+       x = "Weight Group",
+       y = "Hip Circumference (cm)")
+
+
+# Divide data into five age groups
+fat$age_group <- cut(fat$Age, breaks = c(18, 30, 40, 50, 60, 70))
+fat <- na.omit(fat)
+
+# Create a boxplot for each age group
+ggplot(fat, aes(x = age_group, y = Hip_circumference)) +
+  geom_boxplot(fill = "steelblue") +
+  xlab("Age group") +
+  ylab("Hip circumference (cm)") +
+  ggtitle("Hip circumference distribution by age group")
+# Multiple Regression Line
+ggplot(fat, aes(x=Percent_body_fat_Brozek+ Weight, y=Hip_circumference)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE, color="red") +
+  geom_smooth(method="loess", se=FALSE, color="blue", linetype="dashed") +
+  labs(title = "Hip Circumference vs. Percent Body and Weight")
+
+# Residual Plot
+model <- lm(Hip_circumference ~ Percent_body_fat_Brozek+ Weight, data= fat)
+summary(model)
+infl <- influence.measures(model)
+hat_thresh <- 2 * (ncol(fat) + 1) / nrow(fat)
+high_leverage <- infl$hat > hat_thresh
+fat <- fat[!high_leverage, ]
+# no high leverge
+par(mfrow=c(2,2))
+plot(model)
+
+
+# Cart Model
+install.packages("rpart")
+library(rpart)
+
+# Build the CART model for Percent_body_fat_Brozek
+names(fat)[2] <- "pb"
+cart <- rpart(Hip_circumference ~ pb, data = fat)
+
+# Plot the decision tree
+plot(cart)
+text(cart)
+
+# Build the CART model for weight
+cart2 <- rpart(Hip_circumference ~ Weight, data = fat)
+
+# Plot the decision tree
+plot(cart2)
+text(cart2)
